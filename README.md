@@ -11,7 +11,7 @@
 
 > [!NOTE]
 > We are experimenting with [obuild](https://github.com/unjs/obuild) as the next next-gen successor based on [rolldown](https://github.com/rolldown/rolldown).
-> 
+>
 > If you mainly need faster build speeds and don't mind trying beta software, give it a try!
 
 ### 📦 Optimized bundler
@@ -39,6 +39,12 @@ Integration with [untyped](https://github.com/unjs/untyped).
 Automatically check for various build issues such as potential **missing** and **unused** [dependencies](https://docs.npmjs.com/cli/v7/configuring-npm/package-json#dependencies) and fail CI.
 
 CLI output also includes output size and exports for quick inspection.
+
+## Documentation
+
+- [Dependencies Overview](./docs/dependency-overview.md) - Overview of project dependencies and their roles
+- [Detailed Dependencies](./docs/dependencies.md) - Comprehensive list of all dependencies with versions and descriptions
+- [API Usage](./docs/api-usage.md) - Detailed usage of third-party APIs in the project
 
 ## Usage
 

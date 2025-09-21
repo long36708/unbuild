@@ -11,29 +11,33 @@ import { rollupStub } from "./stub";
 import { rollupWatch } from "./watch";
 import { fixCJSExportTypePlugin } from "./plugins/cjs";
 
+/**
+ * Rollup构建函数
+ * @param ctx 构建上下文
+ */
 export async function rollupBuild(ctx: BuildContext): Promise<void> {
-  // Stub mode
+  // Stub模式
   if (ctx.options.stub) {
     await rollupStub(ctx);
     await ctx.hooks.callHook("rollup:done", ctx);
     return;
   }
 
-  // Resolve options
+  // 解析选项
   const rollupOptions = getRollupOptions(ctx);
   await ctx.hooks.callHook("rollup:options", ctx, rollupOptions);
 
-  // Skip build if no input entries defined
+  // 如果没有定义输入条目，则跳过构建
   if (Object.keys(rollupOptions.input as any).length === 0) {
     await ctx.hooks.callHook("rollup:done", ctx);
     return;
   }
 
-  // Do rollup build
+  // 执行rollup构建
   const buildResult = await rollup(rollupOptions);
   await ctx.hooks.callHook("rollup:build", ctx, buildResult);
 
-  // Collect info about output entries
+  // 收集输出条目的信息
   const allOutputOptions = rollupOptions.output! as OutputOptions[];
   for (const outputOptions of allOutputOptions) {
     const { output } = await buildResult.write(outputOptions);
@@ -66,17 +70,17 @@ export async function rollupBuild(ctx: BuildContext): Promise<void> {
     }
   }
 
-  // Watch
+  // 监听模式
   if (ctx.options.watch) {
     rollupWatch(rollupOptions);
-    // TODO: Clone rollup options to continue types watching
+    // TODO: 克隆rollup选项以继续类型监听
     if (ctx.options.declaration && ctx.options.watch) {
       consola.warn("`rollup` DTS builder does not support watch mode yet.");
     }
     return;
   }
 
-  // Types
+  // 类型声明
   if (ctx.options.declaration) {
     rollupOptions.plugins = [
       ...rollupOptions.plugins,
@@ -86,8 +90,8 @@ export async function rollupBuild(ctx: BuildContext): Promise<void> {
     ].filter(
       (plugin): plugin is NonNullable<Exclude<typeof plugin, false>> =>
         /**
-         * Issue: #396
-         * rollup-plugin-dts conflicts with rollup-plugin-commonjs:
+         * 问题: #396
+         * rollup-plugin-dts与rollup-plugin-commonjs冲突:
          * https://github.com/Swatinem/rollup-plugin-dts?tab=readme-ov-file#what-to-expect
          */
         !!plugin && (!("name" in plugin) || plugin.name !== "commonjs"),
@@ -96,7 +100,9 @@ export async function rollupBuild(ctx: BuildContext): Promise<void> {
     await ctx.hooks.callHook("rollup:dts:options", ctx, rollupOptions);
     const typesBuild = await rollup(rollupOptions);
     await ctx.hooks.callHook("rollup:dts:build", ctx, typesBuild);
+
     // #region cjs
+    // 如果启用了CommonJS输出，则生成.d.cts文件
     if (ctx.options.rollup.emitCJS) {
       await typesBuild.write({
         dir: resolve(ctx.options.rootDir, ctx.options.outDir),
@@ -105,14 +111,18 @@ export async function rollupBuild(ctx: BuildContext): Promise<void> {
       });
     }
     // #endregion
+
     // #region mjs
+    // 生成.d.mts文件
     await typesBuild.write({
       dir: resolve(ctx.options.rootDir, ctx.options.outDir),
       entryFileNames: "[name].d.mts",
       chunkFileNames: (chunk) => getChunkFilename(ctx, chunk, "d.mts"),
     });
     // #endregion
+
     // #region .d.ts for node10 compatibility (TypeScript version < 4.7)
+    // 为node10兼容性生成.d.ts文件（TypeScript版本 < 4.7）
     if (
       ctx.options.declaration === true ||
       ctx.options.declaration === "compatible"

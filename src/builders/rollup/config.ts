@@ -15,9 +15,17 @@ import { cjsPlugin } from "./plugins/cjs";
 import { shebangPlugin } from "./plugins/shebang";
 import { DEFAULT_EXTENSIONS, getChunkFilename, resolveAliases } from "./utils";
 
+/**
+ * 获取Rollup选项
+ * @param ctx 构建上下文
+ * @returns Rollup选项
+ */
 export function getRollupOptions(ctx: BuildContext): RollupOptions {
+  // 解析别名
   const _aliases = resolveAliases(ctx);
+
   return {
+    // 输入配置
     input: Object.fromEntries(
       ctx.options.entries
         .filter((entry) => entry.builder === "rollup")
@@ -27,7 +35,9 @@ export function getRollupOptions(ctx: BuildContext): RollupOptions {
         ]),
     ),
 
+    // 输出配置
     output: [
+      // CommonJS输出
       ctx.options.rollup.emitCJS &&
         ({
           dir: resolve(ctx.options.rootDir, ctx.options.outDir),
@@ -43,6 +53,8 @@ export function getRollupOptions(ctx: BuildContext): RollupOptions {
           sourcemap: ctx.options.sourcemap,
           ...ctx.options.rollup.output,
         } satisfies OutputOptions),
+
+      // ES模块输出
       {
         dir: resolve(ctx.options.rootDir, ctx.options.outDir),
         entryFileNames: "[name].mjs",
@@ -58,17 +70,22 @@ export function getRollupOptions(ctx: BuildContext): RollupOptions {
       } satisfies OutputOptions,
     ].filter(Boolean) as OutputOptions[],
 
+    /**
+     * 判断模块是否为外部依赖
+     * @param originalId 原始模块ID
+     * @returns 是否为外部依赖
+     */
     external(originalId): boolean {
-      // Resolve aliases
+      // 解析别名
       const resolvedId = resolveAlias(originalId, _aliases);
 
-      // Try to guess package name of id
+      // 尝试猜测ID的包名
       const pkgName =
         parseNodeModulePath(resolvedId)?.name ||
         parseNodeModulePath(originalId)?.name ||
         getpkg(originalId);
 
-      // Check for explicit external rules
+      // 检查显式的外部规则
       if (
         arrayIncludes(ctx.options.externals, pkgName) ||
         arrayIncludes(ctx.options.externals, originalId) ||
@@ -77,7 +94,7 @@ export function getRollupOptions(ctx: BuildContext): RollupOptions {
         return true;
       }
 
-      // Source is always bundled
+      // 源代码总是被打包
       for (const id of [originalId, resolvedId]) {
         if (
           id[0] === "." ||
@@ -89,7 +106,7 @@ export function getRollupOptions(ctx: BuildContext): RollupOptions {
         }
       }
 
-      // Check for other explicit inline rules
+      // 检查其他显式的内联规则
       if (
         ctx.options.rollup.inlineDependencies === true ||
         (Array.isArray(ctx.options.rollup.inlineDependencies) &&
@@ -100,18 +117,26 @@ export function getRollupOptions(ctx: BuildContext): RollupOptions {
         return false;
       }
 
-      // Inline by default, but also show a warning, since it is an implicit behavior
+      // 默认内联，但显示警告，因为这是一个隐式行为
       warn(ctx, `Implicitly bundling "${originalId}"`);
       return false;
     },
 
+    /**
+     * 处理Rollup警告
+     * @param warning 警告信息
+     * @param rollupWarn Rollup警告函数
+     */
     onwarn(warning, rollupWarn): void {
+      // 忽略循环依赖警告
       if (!warning.code || !["CIRCULAR_DEPENDENCY"].includes(warning.code)) {
         rollupWarn(warning);
       }
     },
 
+    // 插件配置
     plugins: [
+      // 替换插件
       ctx.options.rollup.replace &&
         replace({
           ...ctx.options.rollup.replace,
@@ -121,12 +146,14 @@ export function getRollupOptions(ctx: BuildContext): RollupOptions {
           },
         }),
 
+      // 别名插件
       ctx.options.rollup.alias &&
         alias({
           ...ctx.options.rollup.alias,
           entries: _aliases,
         }),
 
+      // 解析插件
       ctx.options.rollup.resolve &&
         nodeResolve({
           extensions: DEFAULT_EXTENSIONS,
@@ -134,25 +161,30 @@ export function getRollupOptions(ctx: BuildContext): RollupOptions {
           ...ctx.options.rollup.resolve,
         }),
 
+      // JSON插件
       ctx.options.rollup.json &&
         JSONPlugin({
           ...ctx.options.rollup.json,
         }),
 
+      // Shebang插件
       shebangPlugin(),
 
+      // ESBuild插件
       ctx.options.rollup.esbuild &&
         esbuild({
           sourcemap: ctx.options.sourcemap,
           ...ctx.options.rollup.esbuild,
         }),
 
+      // CommonJS插件
       ctx.options.rollup.commonjs &&
         commonjs({
           extensions: DEFAULT_EXTENSIONS,
           ...ctx.options.rollup.commonjs,
         }),
 
+      // 保留动态导入插件
       ctx.options.rollup.preserveDynamicImports && {
         name: "unbuild=preserve-dynamic-imports",
         renderDynamicImport(): { left: string; right: string } {
@@ -160,8 +192,10 @@ export function getRollupOptions(ctx: BuildContext): RollupOptions {
         },
       },
 
+      // CommonJS桥接插件
       ctx.options.rollup.cjsBridge && cjsPlugin({}),
 
+      // 原始文件插件
       rawPlugin(),
     ].filter((p): p is NonNullable<Exclude<typeof p, false>> => !!p),
   } satisfies RollupOptions;

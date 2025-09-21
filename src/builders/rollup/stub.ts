@@ -12,14 +12,24 @@ import type { BuildContext } from "../../types";
 import { makeExecutable, getShebang } from "./plugins/shebang";
 import { DEFAULT_EXTENSIONS, resolveAliases } from "./utils";
 
+/**
+ * Rollup stub函数
+ * @param ctx 构建上下文
+ */
 export async function rollupStub(ctx: BuildContext): Promise<void> {
+  // 获取Babel插件
   const babelPlugins = ctx.options.stubOptions.jiti.transformOptions?.babel
     ?.plugins as any;
+  // 导入的Babel插件数组
   const importedBabelPlugins: Array<string> = [];
+
   // #542
+  // Jiti导入解析函数
   const jitiImportResolve = ctx.options.stubOptions.absoluteJitiPath
     ? (...args: string[]): string => pathToFileURL(resolve(...args))
     : relative;
+
+  // 序列化的Jiti选项
   const serializedJitiOptions = JSON.stringify(
     {
       ...ctx.options.stubOptions.jiti,
@@ -64,31 +74,41 @@ export async function rollupStub(ctx: BuildContext): Promise<void> {
       : "[]",
   );
 
+  // 遍历Rollup构建条目
   for (const entry of ctx.options.entries.filter(
     (entry) => entry.builder === "rollup",
   )) {
+    // 输出路径
     const output = resolve(
       ctx.options.rootDir,
       ctx.options.outDir,
       entry.name!,
     );
 
+    // 是否为ESM模块
     const isESM = ctx.pkg.type === "module";
+    // 解析入口文件路径
     const resolvedEntry = fileURLToPath(ctx.jiti.esmResolve(entry.input)!);
+    // 去除扩展名的入口文件路径
     const resolvedEntryWithoutExt = resolvedEntry.slice(
       0,
       Math.max(0, resolvedEntry.length - extname(resolvedEntry).length),
     );
+    // 用于类型导入的解析入口文件路径
     const resolvedEntryForTypeImport = isESM
       ? `${resolvedEntry.replace(/(\.m?)(ts)$/, "$1js")}`
       : resolvedEntryWithoutExt;
+    // 读取入口文件内容
     const code = await fsp.readFile(resolvedEntry, "utf8");
+    // 获取Shebang
     const shebang = getShebang(code);
 
+    // 创建输出目录
     await mkdir(dirname(output), { recursive: true });
 
     // CJS Stub
     if (ctx.options.rollup.emitCJS) {
+      // Jiti CJS路径
       const jitiCJSPath = jitiImportResolve(
         dirname(output),
         await resolvePath("jiti", {
@@ -96,6 +116,7 @@ export async function rollupStub(ctx: BuildContext): Promise<void> {
           conditions: ["node", "require"],
         }),
       );
+      // 写入CJS stub文件
       await writeFile(
         output + ".cjs",
         shebang +
@@ -117,7 +138,7 @@ export async function rollupStub(ctx: BuildContext): Promise<void> {
     }
 
     // MJS Stub
-    // Try to analyze exports
+    // 尝试分析导出
     const namedExports: string[] = await resolveModuleExportNames(
       resolvedEntry,
       {
@@ -127,9 +148,11 @@ export async function rollupStub(ctx: BuildContext): Promise<void> {
       warn(ctx, `Cannot analyze ${resolvedEntry} for exports:` + error);
       return [];
     });
+    // 是否有默认导出
     const hasDefaultExport =
       namedExports.includes("default") || namedExports.length === 0;
 
+    // Jiti ESM路径
     const jitiESMPath = jitiImportResolve(
       dirname(output),
       await resolvePath("jiti", {
@@ -138,6 +161,7 @@ export async function rollupStub(ctx: BuildContext): Promise<void> {
       }),
     );
 
+    // 写入MJS stub文件
     await writeFile(
       output + ".mjs",
       shebang +
@@ -163,13 +187,16 @@ export async function rollupStub(ctx: BuildContext): Promise<void> {
     );
 
     // DTS Stub
+    // 如果启用了声明文件生成
     if (ctx.options.declaration) {
+      // DTS内容
       const dtsContent = [
         `export * from ${JSON.stringify(resolvedEntryForTypeImport)};`,
         hasDefaultExport
           ? `export { default } from ${JSON.stringify(resolvedEntryForTypeImport)};`
           : "",
       ].join("\n");
+      // 写入DTS文件
       await writeFile(output + ".d.cts", dtsContent);
       await writeFile(output + ".d.mts", dtsContent);
       if (
@@ -180,6 +207,7 @@ export async function rollupStub(ctx: BuildContext): Promise<void> {
       }
     }
 
+    // 如果有Shebang，则使文件可执行
     if (shebang) {
       await makeExecutable(output + ".cjs");
       await makeExecutable(output + ".mjs");

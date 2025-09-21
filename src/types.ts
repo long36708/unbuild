@@ -11,15 +11,37 @@ import type { MkdistBuildEntry, MkdistHooks } from "./builders/mkdist/types";
 import type { CopyBuildEntry, CopyHooks } from "./builders/copy/types";
 import type { UntypedBuildEntry, UntypedHooks } from "./builders/untyped/types";
 
+/**
+ * 基础构建条目接口
+ */
 export interface BaseBuildEntry {
+  /**
+   * 构建器类型
+   */
   builder?: "untyped" | "rollup" | "mkdist" | "copy";
+
+  /**
+   * 输入路径
+   */
   input: string;
+
+  /**
+   * 条目名称
+   */
   name?: string;
+
+  /**
+   * 输出目录
+   */
   outDir?: string;
+
+  /**
+   * 声明文件生成选项
+   */
   declaration?: "compatible" | "node16" | boolean;
 }
 
-/** Bundler types */
+/** 构建器类型 */
 export type {
   RollupBuildEntry,
   RollupBuildOptions,
@@ -33,6 +55,9 @@ export type {
   UntypedOutputs,
 } from "./builders/untyped/types";
 
+/**
+ * 构建条目类型，可以是基础构建条目或各种特定构建器的构建条目
+ */
 export type BuildEntry =
   | BaseBuildEntry
   | RollupBuildEntry
@@ -40,69 +65,72 @@ export type BuildEntry =
   | MkdistBuildEntry
   | CopyBuildEntry;
 
+/**
+ * 构建选项接口
+ */
 export interface BuildOptions {
   /**
-   * The name of the project.
+   * 项目名称
    */
   name: string;
 
   /**
-   * The root directory of the project.
+   * 项目根目录
    */
   rootDir: string;
 
   /**
-   * Build entries.
+   * 构建条目数组
    */
   entries: BuildEntry[];
 
   /**
-   * Clean the output directory before building.
+   * 在构建前是否清理输出目录
    */
   clean: boolean;
 
   /**
    * @experimental
-   * Generate source mapping file.
+   * 是否生成source map文件
    */
   sourcemap: boolean;
 
   /**
-   * Whether to generate declaration files.
-   * * `compatible` means "src/index.ts" will generate "dist/index.d.mts", "dist/index.d.cts" and "dist/index.d.ts".
-   * * `node16` means "src/index.ts" will generate "dist/index.d.mts" and "dist/index.d.cts".
-   * * `true` is equivalent to `compatible`.
-   * * `false` will disable declaration generation.
-   * * `undefined` will auto detect based on "package.json". If "package.json" has "types" field, it will be `"compatible"`, otherwise `false`.
+   * 是否生成声明文件
+   * * `compatible` 表示 "src/index.ts" 将生成 "dist/index.d.mts", "dist/index.d.cts" 和 "dist/index.d.ts"
+   * * `node16` 表示 "src/index.ts" 将生成 "dist/index.d.mts" 和 "dist/index.d.cts"
+   * * `true` 等同于 `compatible`
+   * * `false` 将禁用声明文件生成
+   * * `undefined` 将根据 "package.json" 自动检测。如果 "package.json" 有 "types" 字段，则为 `"compatible"`，否则为 `false`
    */
   declaration?: "compatible" | "node16" | boolean;
 
   /**
-   * Output directory.
+   * 输出目录
    */
   outDir: string;
 
   /**
-   * Whether to build with JIT stubs.
-   * Read more: [stubbing](https://antfu.me/posts/publish-esm-and-cjs#stubbing)
+   * 是否使用JIT stubs进行构建
+   * 了解更多: [stubbing](https://antfu.me/posts/publish-esm-and-cjs#stubbing)
    */
   stub: boolean;
 
   /**
-   * Whether to build and actively watch the file changes.
+   * 是否构建并主动监听文件变化
    *
-   * @experimental This feature is experimental and incomplete.
+   * @experimental 此功能是实验性的且不完整
    */
   watch: boolean;
 
   /**
-   * Watch mode options.
+   * 监听模式选项
    */
   watchOptions: WatcherOptions | undefined;
 
   /**
-   * Stub options, where [jiti](https://github.com/unjs/jiti)
-   * is an object of type `Omit<JitiOptions, "transform" | "onError">`.
+   * Stub选项，其中 [jiti](https://github.com/unjs/jiti)
+   * 是一个 `Omit<JitiOptions, "transform" | "onError">` 类型的对象
    */
   stubOptions: {
     jiti: Omit<JitiOptions, "transform" | "onError">;
@@ -110,105 +138,208 @@ export interface BuildOptions {
   };
 
   /**
-   * Used to specify which modules or libraries should be considered external dependencies
-   * and not included in the final build product.
+   * 用于指定哪些模块或库应被视为外部依赖项
+   * 且不包含在最终构建产品中
    */
   externals: (string | RegExp)[];
 
+  /**
+   * 依赖项列表
+   */
   dependencies: string[];
 
+  /**
+   * 对等依赖项列表
+   */
   peerDependencies: string[];
 
+  /**
+   * 开发依赖项列表
+   */
   devDependencies: string[];
 
   /**
-   * Create aliases for module imports to reference modules in code using more concise paths.
-   * Allow you to specify an alias for the module path.
+   * 为模块导入创建别名，以便在代码中使用更简洁的路径引用模块
+   * 允许您为模块路径指定别名
    */
   alias: { [find: string]: string };
 
   /**
-   * Replace the text in the source code with rules.
+   * 使用规则替换源代码中的文本
    */
   replace: { [find: string]: string };
 
   /**
-   * Terminate the build process when a warning appears
+   * 出现警告时是否终止构建过程
    */
   failOnWarn?: boolean;
 
   /**
-   * [Rollup](https://rollupjs.org/configuration-options) Build Options
+   * [Rollup](https://rollupjs.org/configuration-options) 构建选项
    */
   rollup: RollupBuildOptions;
 
   /**
-   * Run different types of builds (untyped, mkdist, Rollup, copy) simultaneously.
+   * 同时运行不同类型的构建（untyped, mkdist, Rollup, copy）
    */
   parallel: boolean;
 }
 
+/**
+ * 构建上下文接口
+ */
 export interface BuildContext {
+  /**
+   * 构建选项
+   */
   options: BuildOptions;
+
+  /**
+   * package.json内容
+   */
   pkg: PackageJson;
+
+  /**
+   * jiti实例
+   */
   jiti: Jiti;
+
+  /**
+   * 构建条目数组
+   */
   buildEntries: {
+    /**
+     * 条目路径
+     */
     path: string;
+
+    /**
+     * 文件大小（字节）
+     */
     bytes?: number;
+
+    /**
+     * 导出列表
+     */
     exports?: string[];
+
+    /**
+     * chunks列表
+     */
     chunks?: string[];
+
+    /**
+     * 是否为chunk
+     */
     chunk?: boolean;
-    modules?: { id: string; bytes: number }[];
+
+    /**
+     * 模块信息数组
+     */
+    modules?: {
+      /**
+       * 模块ID
+       */
+      id: string;
+
+      /**
+       * 模块大小（字节）
+       */
+      bytes: number
+    }[];
   }[];
 
+  /**
+   * 已使用的导入集合
+   */
   usedImports: Set<string>;
+
+  /**
+   * 警告信息集合
+   */
   warnings: Set<string>;
+
+  /**
+   * 钩子函数管理器
+   */
   hooks: Hookable<BuildHooks>;
 }
 
+/**
+ * 构建预设类型
+ */
 export type BuildPreset = BuildConfig | (() => BuildConfig);
 
+/**
+ * 深度部分类型工具
+ */
 type DeepPartial<T> = { [P in keyof T]?: DeepPartial<T[P]> };
 
 /**
- * In addition to basic `entries`, `presets`, and `hooks`,
- * there are also all the properties of `BuildOptions` except for BuildOptions's `entries`.
+ * 构建配置接口
+ * 除了基础的 `entries`、`presets` 和 `hooks` 外，
+ * 还包含 `BuildOptions` 的所有属性，除了 BuildOptions 的 `entries`
  */
 export interface BuildConfig
   extends DeepPartial<Omit<BuildOptions, "entries">> {
   /**
-   * Specify the entry file or entry module during the construction process.
+   * 指定构建过程中的入口文件或入口模块
    */
   entries?: (BuildEntry | string)[];
 
   /**
-   * Used to specify the preset build configuration.
+   * 用于指定预设构建配置
    */
   preset?: string | BuildPreset;
 
   /**
-   * Used to define hook functions during the construction process to perform custom operations during specific construction stages.
-   * This configuration allows you to insert custom logic during the build process to meet specific requirements or perform additional operations.
+   * 用于在构建过程中定义钩子函数，以便在特定构建阶段执行自定义操作
+   * 此配置允许您在构建过程中插入自定义逻辑，以满足特定需求或执行额外操作
    */
   hooks?: Partial<BuildHooks>;
 }
 
+/**
+ * 构建钩子接口
+ * 继承自各种构建器的钩子接口
+ */
 export interface BuildHooks
   extends CopyHooks,
     UntypedHooks,
     MkdistHooks,
     RollupHooks {
+  /**
+   * 构建准备阶段钩子
+   */
   "build:prepare": (ctx: BuildContext) => void | Promise<void>;
+
+  /**
+   * 构建开始前钩子
+   */
   "build:before": (ctx: BuildContext) => void | Promise<void>;
+
+  /**
+   * 构建完成后钩子
+   */
   "build:done": (ctx: BuildContext) => void | Promise<void>;
 }
 
+/**
+ * 定义构建配置的辅助函数
+ * @param config 构建配置或构建配置数组
+ * @returns 构建配置数组
+ */
 export function defineBuildConfig(
   config: BuildConfig | BuildConfig[],
 ): BuildConfig[] {
   return (Array.isArray(config) ? config : [config]).filter(Boolean);
 }
 
+/**
+ * 定义构建预设的辅助函数
+ * @param preset 构建预设
+ * @returns 构建预设
+ */
 export function definePreset(preset: BuildPreset): BuildPreset {
   return preset;
 }
